@@ -1,136 +1,77 @@
 const uuid = require('uuid');
 const express = require('express');
-const onFinished = require('on-finished');
+const session = require('express-session');
 const bodyParser = require('body-parser');
-const path = require('path');
 const port = 3000;
-const fs = require('fs');
+const request = require("request");
 
 const app = express();
+
+app.use(session({
+    secret: 'some-secret',
+    resave: false,
+    saveUninitialized: true
+}))
+
+app.set('view engine', 'pug')
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 
-const SESSION_KEY = 'Authorization';
-
-class Session {
-    #sessions = {}
-
-    constructor() {
-        try {
-            this.#sessions = fs.readFileSync('./sessions.json', 'utf8');
-            this.#sessions = JSON.parse(this.#sessions.trim());
-
-            console.log(this.#sessions);
-        } catch (e) {
-            this.#sessions = {};
-        }
-    }
-
-    #storeSessions() {
-        fs.writeFileSync('./sessions.json', JSON.stringify(this.#sessions), 'utf-8');
-    }
-
-    set(key, value) {
-        if (!value) {
-            value = {};
-        }
-        this.#sessions[key] = value;
-        this.#storeSessions();
-    }
-
-    get(key) {
-        return this.#sessions[key];
-    }
-
-    init(res) {
-        const sessionId = uuid.v4();
-        this.set(sessionId);
-
-        return sessionId;
-    }
-
-    destroy(req, res) {
-        const sessionId = req.sessionId;
-        delete this.#sessions[sessionId];
-        this.#storeSessions();
-    }
-}
-
-const sessions = new Session();
-
-app.use((req, res, next) => {
-    let currentSession = {};
-    let sessionId = req.get(SESSION_KEY);
-
-    if (sessionId) {
-        currentSession = sessions.get(sessionId);
-        if (!currentSession) {
-            currentSession = {};
-            sessionId = sessions.init(res);
-        }
-    } else {
-        sessionId = sessions.init(res);
-    }
-
-    req.session = currentSession;
-    req.sessionId = sessionId;
-
-    onFinished(req, () => {
-        const currentSession = req.session;
-        const sessionId = req.sessionId;
-        sessions.set(sessionId, currentSession);
-    });
-
-    next();
-});
-
 app.get('/', (req, res) => {
-    if (req.session.username) {
-        return res.json({
-            username: req.session.username,
-            logout: 'http://localhost:3000/logout'
-        })
-    }
-    res.sendFile(path.join(__dirname + '/index.html'));
+    res.render('index', {username: req.session.username})
 })
 
 app.get('/logout', (req, res) => {
-    sessions.destroy(req, res);
-    res.redirect('/');
-});
-
-const users = [
-    {
-        login: 'Login',
-        password: 'Password',
-        username: 'Username',
-    },
-    {
-        login: 'Login1',
-        password: 'Password1',
-        username: 'Username1',
-    }
-]
+    req.session.destroy(() => {
+        res.redirect('/');
+    });
+})
 
 app.post('/api/login', (req, res) => {
     const {login, password} = req.body;
+    console.log(login + '  ' + password)
 
-    const user = users.find((user) => {
-        if (user.login == login && user.password == password) {
-            return true;
+    const options = {
+        method: 'POST',
+        url: 'https://dev-00wdj4huibiu7y8p.us.auth0.com/oauth/token',
+        headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+        },
+        form: {
+            grant_type: 'password',
+            username: login,
+            password: password,
+            scope: 'offline_access',
+            client_id: 'bWUNFvT10QJBoWqZn7b4MYAfwMFS8q8C',
+            client_secret: 'IaAds7SUSktrybzfIH0Rp3a8WmwdiGAX5sGq9HU2JV0RUPWw1gR5nCqaWAvw44ug',
         }
-        return false
+    };
+
+    request(options, function (error, response, body) {
+        if (error) {
+            console.log('error')
+            res.status(501).send(error)
+        } else {
+            body = JSON.parse(body)
+            console.log(body)
+
+            if (body['error']) {
+                console.log('error')
+                res.status(501).send(body)
+            } else {
+                req.session.accessToken = body['access_token']
+                req.session.username = login;
+                req.session.login = login;
+
+                res.json({token: body['access_token']});
+            }
+        }
+
+
     });
 
-    if (user) {
-        req.session.username = user.username;
-        req.session.login = user.login;
-
-        res.json({token: req.sessionId});
-    }
-
-    res.status(401).send();
-});
+})
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
