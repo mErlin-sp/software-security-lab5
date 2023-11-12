@@ -2,7 +2,7 @@ doctype html
 head
     meta(charset='UTF-8')
     meta(name='viewport' content='width=device-width, initial-scale=1.0')
-    title LAB4 Create User
+    title LAB5 Create User
     link(rel='stylesheet' href='styles.css')
     script(src='https://unpkg.com/axios/dist/axios.min.js')
 main#main-holder
@@ -20,6 +20,7 @@ main#main-holder
         const createUserForm = document.getElementById("create-user-form");
         const createUserButton = document.getElementById("create-user-form-submit");
         const createUserError = document.getElementById("create-user-error-msg");
+        const session = sessionStorage.getItem('session');
 
         createUserButton.addEventListener("click", (e) => {
             e.preventDefault();
@@ -27,9 +28,20 @@ main#main-holder
             const name = createUserForm.name.value;
             const password = createUserForm.password.value;
 
+            let token;
+
+            try {
+                token = JSON.parse(session).token;
+                console.log(`token: ${token}`)
+            } catch (e) {
+            }
+
             axios({
                 method: 'post',
                 url: '/api/create-user',
+                headers: {
+                    authorization: `Bearer ${token ? token : ''}`
+                },
                 data: {
                     email,
                     name,

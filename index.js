@@ -4,6 +4,7 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const port = 3000;
 const request = require("request");
+const {auth, requiredScopes} = require('express-oauth2-jwt-bearer');
 
 const app = express();
 
@@ -94,6 +95,7 @@ app.post('/api/login', (req, res) => {
             grant_type: 'password',
             username: login,
             password: password,
+            audience: 'https://dev-00wdj4huibiu7y8p.us.auth0.com/api/v2/',
             scope: 'offline_access',
             client_id: 'bWUNFvT10QJBoWqZn7b4MYAfwMFS8q8C',
             client_secret: 'IaAds7SUSktrybzfIH0Rp3a8WmwdiGAX5sGq9HU2JV0RUPWw1gR5nCqaWAvw44ug',
@@ -108,10 +110,9 @@ app.post('/api/login', (req, res) => {
         }
 
         resBody = JSON.parse(resBody)
-        console.log(`resBody: ${resBody}`)
 
         if (resBody['error']) {
-            console.error(error)
+            console.error(`error: ${error}`)
             res.status(500).send(resBody)
             return;
         }
@@ -120,6 +121,7 @@ app.post('/api/login', (req, res) => {
         req.session.refreshToken = resBody['refresh_token']
         req.session.expiresIn = new Date().getTime() + (parseInt(resBody['expires_in']) * 1000)
         req.session.login = login;
+        console.log(`Access Token: ${resBody['access_token']}`)
         console.log(`Expires in: ${new Date(req.session.expiresIn)}`)
 
         res.json({token: resBody['access_token']});
@@ -127,7 +129,17 @@ app.post('/api/login', (req, res) => {
 
 })
 
-app.post('/api/create-user', (req, res) => {
+// Authorization middleware. When used, the Access Token must
+// exist and be verified against the Auth0 JSON Web Key Set.
+const checkJwt = auth({
+    audience: 'https://dev-00wdj4huibiu7y8p.us.auth0.com/api/v2/',
+    issuerBaseURL: `https://dev-00wdj4huibiu7y8p.us.auth0.com`,
+});
+
+const checkScopes = requiredScopes('create:users');
+
+// This route needs authentication
+app.post('/api/create-user', checkJwt, (req, res) => {
     const options = {
         method: 'POST',
         url: 'https://dev-00wdj4huibiu7y8p.us.auth0.com/oauth/token',
