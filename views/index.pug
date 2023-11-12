@@ -2,7 +2,7 @@ doctype html
 head
     meta(charset='UTF-8')
     meta(name='viewport' content='width=device-width, initial-scale=1.0')
-    title Login
+    title LAB4 Login
     style.
         html {
             height: 100%;
@@ -88,8 +88,8 @@ head
     script(src='https://unpkg.com/axios/dist/axios.min.js')
 main#main-holder
     h1#login-header Login
-    if username
-        p HELLO #{username}
+    if login
+        p HELLO #{login}
         a#logout(href='/logout') Logout
     else
         #login-error-msg-holder
@@ -111,7 +111,6 @@ main#main-holder
                 const login = loginForm.login.value;
                 const password = loginForm.password.value;
 
-
                 axios({
                     method: 'post',
                     url: '/api/login',
@@ -120,7 +119,6 @@ main#main-holder
                         password
                     }
                 }).then((response) => {
-                    console.log(JSON.stringify(response.data))
                     const {username} = response.data;
                     sessionStorage.setItem('session', JSON.stringify(response.data));
                     location.reload();
