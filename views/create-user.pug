@@ -1,0 +1,51 @@
+doctype html
+head
+    meta(charset='UTF-8')
+    meta(name='viewport' content='width=device-width, initial-scale=1.0')
+    title LAB4 Create User
+    link(rel='stylesheet' href='styles.css')
+    script(src='https://unpkg.com/axios/dist/axios.min.js')
+main#main-holder
+    h1#create-user-header Create User
+    #create-user-error-msg-holder
+        p#create-user-error-msg
+            | Create User Error
+    form#create-user-form(action='/api/login' method='post')
+        input#email-field.login-form-field(type='text' name='email' placeholder='Email')
+        input#name-field.login-form-field(type='text' name='name' placeholder='Name')
+        input#password-field.login-form-field(type='password' name='password' placeholder='Password')
+        input#create-user-form-submit(type='submit' value='Create User')
+
+    script.
+        const createUserForm = document.getElementById("create-user-form");
+        const createUserButton = document.getElementById("create-user-form-submit");
+        const createUserError = document.getElementById("create-user-error-msg");
+
+        createUserButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            const email = createUserForm.email.value;
+            const name = createUserForm.name.value;
+            const password = createUserForm.password.value;
+
+            axios({
+                method: 'post',
+                url: '/api/create-user',
+                data: {
+                    email,
+                    name,
+                    password
+                }
+            }).then((response) => {
+                console.log(response.data)
+                alert('User Created')
+                window.location.href = '/'
+                location.reload()
+            }).catch((response) => {
+                console.log(response)
+                createUserError.style.opacity = 1;
+                alert(`Create User Error ${response}`)
+            });
+        })
+
+
+
